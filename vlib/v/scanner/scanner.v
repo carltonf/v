@@ -1147,6 +1147,7 @@ fn (mut s Scanner) ident_string() string {
 		}
 	}
 	mut n_cr_chars := 0
+	mut n_escaped_quotes := 0
 	mut start := s.pos
 	start_char := s.text[start]
 	if start_char == s.quote
@@ -1174,10 +1175,21 @@ fn (mut s Scanner) ident_string() string {
 			backslash_count++
 		}
 		// end of string
+		/*
 		if c == s.quote && (is_raw || backslash_count % 2 == 0) {
 			// handle '123\\' backslash at the end
 			break
 		}
+		*/
+		if c == s.quote {
+			if is_raw || backslash_count % 2 == 0 {
+				// handle '123\\' backslash at the end
+				break
+			} else {
+				n_escaped_quotes++
+			}
+		}
+
 		if c == s.inter_quote && (s.is_inter_start || s.is_enclosed_inter) {
 			break
 		}
@@ -1244,6 +1256,9 @@ fn (mut s Scanner) ident_string() string {
 		}
 		if n_cr_chars > 0 {
 			string_so_far = string_so_far.replace('\r', '')
+		}
+		if n_escaped_quotes > 0 {
+			string_so_far = string_so_far.replace('\\' + s.quote.ascii_str(), s.quote.ascii_str())
 		}
 		if string_so_far.contains('\\\n') {
 			lit = trim_slash_line_break(string_so_far)

@@ -218,7 +218,7 @@ fn test_escape_string() {
 	// STRING APOSTROPHE
 	mut result := scan_tokens(r"'\''")
 	assert result[0].kind == .string
-	assert result[0].lit == r"\'"
+	assert result[0].lit == r"'"
 
 	// STRING BACKTICK
 	result = scan_tokens(r"'\`'")
