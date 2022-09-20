@@ -1249,6 +1249,58 @@ fn (mut s Scanner) ident_string() string {
 	}
 	if start <= s.pos {
 		mut string_so_far := s.text[start..end]
+    // create a list of string sect
+    mut string_segments := []string{}
+    // mut string_pos := []int{}
+    mut all_pos := u_escapes_pos.clone()
+    all_pos << h_escapes_pos
+    all_pos << quote_escapes_pos
+    all_pos.sort()
+    // string_pos << 0
+    if !s.is_fmt {
+      mut segment_beg_idx := 0
+      for pos in all_pos {
+        // unchanged section
+        string_segments << string_so_far[segment_beg_idx..(pos-start)]
+        segment_beg_idx = pos-start
+
+        if pos in u_escapes_pos {
+          // string_segments << decode_u_escapes(...)
+          str := string_so_far
+          idx := segment_beg_idx
+          end_idx := idx + 4 // "\xXX".len == 4
+          // notice this function doesn't do any decoding... it just replaces '\xc0' with the byte 0xc0
+          string_segments << [u8(strconv.parse_uint(str[idx + 2..end_idx], 16, 8) or { 0 })].bytestr()
+
+          segment_beg_idx = end_idx
+        }
+        if pos in h_escapes_pos {
+          // string_segments << decode_h_escapes(...)
+          str := string_so_far
+          idx := segment_beg_idx
+          end_idx := idx + 6 // "\uXXXX".len == 6
+          escaped_code_point := strconv.parse_uint(str[idx + 2..end_idx], 16, 32) or { 0 }
+          // Check if Escaped Code Point is invalid or not
+          if rune(escaped_code_point).length_in_bytes() == -1 {
+            s.error('invalid unicode point `$str`')
+          }
+          string_segments << utf32_to_str(u32(escaped_code_point))
+
+          segment_beg_idx = end_idx
+        }
+        if pos in quote_escapes_pos {
+          string_segments << s.quote.ascii_str()
+
+          segment_beg_idx += 2
+        }
+      }
+      if segment_beg_idx < string_so_far.len {
+        string_segments << string_so_far[segment_beg_idx..]
+      }
+    }
+    string_so_far = string_segments.join('')
+
+    /*
 		if !s.is_fmt && u_escapes_pos.len > 0 {
 			string_so_far = s.decode_u_escapes(string_so_far, start, u_escapes_pos)
 		}
@@ -1263,6 +1315,7 @@ fn (mut s Scanner) ident_string() string {
 					2..]
 			}
 		}
+    */
 		if n_cr_chars > 0 {
 			string_so_far = string_so_far.replace('\r', '')
 		}
