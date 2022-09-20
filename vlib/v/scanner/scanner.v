@@ -1249,7 +1249,7 @@ fn (mut s Scanner) ident_string() string {
 	}
 	if start <= s.pos {
 		mut string_so_far := s.text[start..end]
-    // create a list of string sect
+    // create a list of string segment
     mut string_segments := []string{}
     // mut string_pos := []int{}
     mut all_pos := u_escapes_pos.clone()
@@ -1259,23 +1259,13 @@ fn (mut s Scanner) ident_string() string {
     // string_pos << 0
     if !s.is_fmt {
       mut segment_beg_idx := 0
-      for pos in all_pos {
+      for _, pos in all_pos {
         // unchanged section
         string_segments << string_so_far[segment_beg_idx..(pos-start)]
         segment_beg_idx = pos-start
 
         if pos in u_escapes_pos {
           // string_segments << decode_u_escapes(...)
-          str := string_so_far
-          idx := segment_beg_idx
-          end_idx := idx + 4 // "\xXX".len == 4
-          // notice this function doesn't do any decoding... it just replaces '\xc0' with the byte 0xc0
-          string_segments << [u8(strconv.parse_uint(str[idx + 2..end_idx], 16, 8) or { 0 })].bytestr()
-
-          segment_beg_idx = end_idx
-        }
-        if pos in h_escapes_pos {
-          // string_segments << decode_h_escapes(...)
           str := string_so_far
           idx := segment_beg_idx
           end_idx := idx + 6 // "\uXXXX".len == 6
@@ -1288,6 +1278,16 @@ fn (mut s Scanner) ident_string() string {
 
           segment_beg_idx = end_idx
         }
+        if pos in h_escapes_pos {
+          // string_segments << decode_h_escapes(...)
+          str := string_so_far
+          idx := segment_beg_idx
+          end_idx := idx + 4 // "\xXX".len == 4
+          // notice this function doesn't do any decoding... it just replaces '\xc0' with the byte 0xc0
+          string_segments << [u8(strconv.parse_uint(str[idx + 2..end_idx], 16, 8) or { 0 })].bytestr()
+
+          segment_beg_idx = end_idx
+        }
         if pos in quote_escapes_pos {
           string_segments << s.quote.ascii_str()
 
@@ -1297,8 +1297,9 @@ fn (mut s Scanner) ident_string() string {
       if segment_beg_idx < string_so_far.len {
         string_segments << string_so_far[segment_beg_idx..]
       }
+
+      string_so_far = string_segments.join('')
     }
-    string_so_far = string_segments.join('')
 
     /*
 		if !s.is_fmt && u_escapes_pos.len > 0 {
